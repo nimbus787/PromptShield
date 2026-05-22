@@ -1,5 +1,6 @@
 import streamlit as st
 from transformers import pipeline
+from html import escape
 
 
 # -----------------------------
@@ -147,19 +148,19 @@ def get_risk_background(decision):
 def get_decision_explanation(decision):
     if decision == "BLOCK":
         return (
-            "Do not submit this prompt to the internal GenAI assistant. "
+            "This prompt should not be submitted to the internal GenAI assistant. "
             "It contains strong signs of prompt injection, jailbreak, or policy-bypass behavior."
         )
 
     if decision == "REVIEW":
         return (
-            "Send this prompt for risk review before submission. "
+            "This prompt should be reviewed by the EY Risk Control team before submission. "
             "The system detected possible risk signals that require additional checking."
         )
 
     return (
-        "This prompt appears suitable for submission. "
-        "Employees should still avoid including confidential client, employee, or project information."
+        "This prompt appears suitable for submission. Employees should still avoid including "
+        "confidential client, employee, or project information."
     )
 
 
@@ -170,7 +171,7 @@ def build_business_recommendation(decision, attack_type, entities):
         return (
             "Recommended action: block this prompt before it reaches the internal GenAI tool. "
             f"The most likely risk pattern is {attack_type}. The employee should rewrite the prompt "
-            "as a normal business request and remove any instruction-overriding language."
+            "as a normal business request and remove any instruction-overriding or policy-bypass language."
         )
 
     if decision == "REVIEW":
@@ -197,48 +198,35 @@ def build_business_recommendation(decision, attack_type, entities):
     )
 
 
-def render_summary_card(title, value, subtitle, border_color, background_color, badge_text=None):
-    badge_html = ""
-
-    if badge_text:
-        badge_html = f"""
-        <div class="card-badge" style="background-color: {background_color}; color: {border_color};">
-            {badge_text}
-        </div>
-        """
-
-    st.markdown(
-        f"""
-        <div class="summary-card" style="border-left-color: {border_color};">
-            <div class="summary-card-top">
-                <div>
-                    <div class="summary-card-title">{title}</div>
-                    <div class="summary-card-value" style="color: #101828;">{value}</div>
-                </div>
-                {badge_html}
-            </div>
-            <div class="summary-card-subtitle">{subtitle}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-def render_decision_status_bar(decision, risk_score):
+def render_decision_banner(decision, risk_score, explanation):
     color = get_risk_color(decision)
     background = get_risk_background(decision)
 
     st.markdown(
         f"""
         <div class="decision-banner" style="background-color: {background}; border-color: {color};">
-            <div class="decision-banner-left">
-                <div class="decision-banner-label">Current Screening Outcome</div>
-                <div class="decision-banner-value" style="color: {color};">{decision}</div>
+            <div class="decision-left">
+                <div class="decision-label">Final Screening Decision</div>
+                <div class="decision-value" style="color: {color};">{escape(decision)}</div>
+                <div class="decision-explanation">{escape(explanation)}</div>
             </div>
-            <div class="decision-banner-right">
-                <div class="decision-banner-score-label">Prompt Injection Risk Score</div>
-                <div class="decision-banner-score">{risk_score:.2%}</div>
+            <div class="decision-right">
+                <div class="score-label">Prompt Injection Risk Score</div>
+                <div class="score-value">{risk_score:.2%}</div>
             </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def render_summary_box(title, value, description, color):
+    st.markdown(
+        f"""
+        <div class="summary-box" style="border-top-color: {color};">
+            <div class="summary-title">{escape(title)}</div>
+            <div class="summary-value">{escape(value)}</div>
+            <div class="summary-description">{escape(description)}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -284,96 +272,94 @@ st.markdown(
 
     .decision-banner {
         border: 1px solid;
-        border-left: 8px solid;
-        border-radius: 18px;
-        padding: 22px 26px;
+        border-left: 10px solid;
+        border-radius: 20px;
+        padding: 26px 30px;
         margin-top: 8px;
-        margin-bottom: 22px;
+        margin-bottom: 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+        gap: 28px;
+        box-shadow: 0 2px 10px rgba(16, 24, 40, 0.08);
     }
 
-    .decision-banner-label {
-        font-size: 15px;
+    .decision-left {
+        flex: 1;
+    }
+
+    .decision-label {
+        font-size: 16px;
         color: #667085;
-        margin-bottom: 8px;
-        font-weight: 600;
+        font-weight: 700;
+        margin-bottom: 10px;
     }
 
-    .decision-banner-value {
-        font-size: 46px;
-        font-weight: 850;
+    .decision-value {
+        font-size: 56px;
+        font-weight: 900;
         letter-spacing: 0.5px;
-        line-height: 1.1;
+        line-height: 1.05;
+        margin-bottom: 12px;
     }
 
-    .decision-banner-right {
+    .decision-explanation {
+        font-size: 16px;
+        color: #344054;
+        line-height: 1.55;
+        max-width: 900px;
+    }
+
+    .decision-right {
+        min-width: 300px;
         text-align: right;
     }
 
-    .decision-banner-score-label {
-        font-size: 15px;
+    .score-label {
+        font-size: 16px;
         color: #667085;
-        margin-bottom: 8px;
-        font-weight: 600;
+        font-weight: 700;
+        margin-bottom: 12px;
     }
 
-    .decision-banner-score {
-        font-size: 34px;
-        font-weight: 800;
+    .score-value {
+        font-size: 42px;
         color: #101828;
+        font-weight: 900;
+        line-height: 1.1;
     }
 
-    .summary-card {
+    .summary-box {
         border: 1px solid #EAECF0;
-        border-left: 7px solid;
+        border-top: 7px solid;
         border-radius: 18px;
-        padding: 22px 24px;
         background-color: #FFFFFF;
+        padding: 22px 24px;
+        min-height: 170px;
+        height: 170px;
         box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
-        min-height: 235px;
-        height: 235px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
     }
 
-    .summary-card-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .summary-card-title {
+    .summary-title {
         font-size: 16px;
         color: #667085;
-        margin-bottom: 14px;
-        font-weight: 650;
+        font-weight: 700;
     }
 
-    .summary-card-value {
-        font-size: 40px;
+    .summary-value {
+        font-size: 34px;
+        color: #101828;
         font-weight: 850;
         line-height: 1.1;
-        letter-spacing: 0.3px;
     }
 
-    .summary-card-subtitle {
+    .summary-description {
         font-size: 15px;
         color: #475467;
-        line-height: 1.55;
-        margin-top: 18px;
-    }
-
-    .card-badge {
-        border-radius: 999px;
-        padding: 7px 12px;
-        font-size: 13px;
-        font-weight: 700;
-        white-space: nowrap;
+        line-height: 1.45;
     }
 
     .recommendation-box {
@@ -386,18 +372,32 @@ st.markdown(
         line-height: 1.65;
     }
 
-    .small-note {
-        color: #667085;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-
     div[data-testid="stMetric"] {
         background-color: #FFFFFF;
         border: 1px solid #EAECF0;
         padding: 18px 20px;
         border-radius: 16px;
         box-shadow: 0 1px 4px rgba(16, 24, 40, 0.06);
+    }
+
+    @media (max-width: 900px) {
+        .decision-banner {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .decision-right {
+            text-align: left;
+            min-width: auto;
+        }
+
+        .decision-value {
+            font-size: 44px;
+        }
+
+        .score-value {
+            font-size: 34px;
+        }
     }
     </style>
     """,
@@ -561,44 +561,33 @@ if run_button:
     st.markdown('<div class="section-title">Screening Decision</div>', unsafe_allow_html=True)
 
     decision_color = get_risk_color(decision)
-    decision_background = get_risk_background(decision)
     decision_explanation = get_decision_explanation(decision)
 
-    render_decision_status_bar(decision, risk_score)
+    render_decision_banner(
+        decision=decision,
+        risk_score=risk_score,
+        explanation=decision_explanation
+    )
 
-    card_col1, card_col2, card_col3 = st.columns(3)
+    summary_col1, summary_col2 = st.columns(2)
 
-    with card_col1:
-        render_summary_card(
-            title="Final Decision",
-            value=decision,
-            subtitle=decision_explanation,
-            border_color=decision_color,
-            background_color=decision_background,
-            badge_text="Primary outcome"
-        )
-
-    with card_col2:
-        render_summary_card(
+    with summary_col1:
+        render_summary_box(
             title="Risk Level",
             value=risk_level,
-            subtitle=(
-                f"Risk score: {risk_score:.2%}. "
-                "This score reflects the likelihood of prompt injection or policy-bypass behavior."
+            description=(
+                "This level summarizes whether the prompt should be allowed, reviewed, or blocked "
+                "before reaching the internal GenAI assistant."
             ),
-            border_color=decision_color,
-            background_color=decision_background,
-            badge_text="Risk status"
+            color=decision_color
         )
 
-    with card_col3:
-        render_summary_card(
+    with summary_col2:
+        render_summary_box(
             title="Model Confidence",
             value=f"{confidence:.2%}",
-            subtitle=f"Classifier result: {predicted_label}. This reflects the confidence of the fine-tuned risk model.",
-            border_color="#175CD3",
-            background_color="#EFF8FF",
-            badge_text="Model output"
+            description=f"Classifier result: {predicted_label}. This is the confidence of the fine-tuned prompt risk model.",
+            color="#175CD3"
         )
 
     st.markdown('<div class="section-title">Sensitive Information Check</div>', unsafe_allow_html=True)
@@ -649,7 +638,7 @@ if run_button:
     st.markdown(
         f"""
         <div class="recommendation-box">
-        {recommendation}
+        {escape(recommendation)}
         </div>
         """,
         unsafe_allow_html=True
