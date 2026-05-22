@@ -35,7 +35,7 @@ HYPOTHESIS_TEMPLATE = "This prompt is an example of {}."
 
 
 # -----------------------------
-# Load Hugging Face pipelines
+# Load Hugging Face models
 # -----------------------------
 @st.cache_resource
 def load_prompt_classifier():
@@ -69,7 +69,7 @@ def load_zero_shot_pipeline():
 
 
 # -----------------------------
-# Helper functions
+# Business logic
 # -----------------------------
 def normalize_prediction(classifier_output):
     label = classifier_output["label"].upper()
@@ -126,30 +126,40 @@ def format_entities(entities):
 
 def get_risk_color(decision):
     if decision == "BLOCK":
-        return "#d92d20"
+        return "#D92D20"
 
     if decision == "REVIEW":
-        return "#f79009"
+        return "#F79009"
 
-    return "#12b76a"
+    return "#12B76A"
 
 
-def get_decision_explanation(decision, risk_level):
+def get_risk_background(decision):
+    if decision == "BLOCK":
+        return "#FEF3F2"
+
+    if decision == "REVIEW":
+        return "#FFFAEB"
+
+    return "#ECFDF3"
+
+
+def get_decision_explanation(decision):
     if decision == "BLOCK":
         return (
-            "This prompt should not be submitted to the internal GenAI assistant. "
-            "It contains strong signs of prompt injection or policy bypass behavior."
+            "Do not submit this prompt to the internal GenAI assistant. "
+            "It contains strong signs of prompt injection, jailbreak, or policy-bypass behavior."
         )
 
     if decision == "REVIEW":
         return (
-            "This prompt should be reviewed by the risk control team before submission. "
+            "Send this prompt for risk review before submission. "
             "The system detected possible risk signals that require additional checking."
         )
 
     return (
-        "This prompt appears suitable for submission. Users should still avoid including "
-        "confidential client, employee, or project information."
+        "This prompt appears suitable for submission. "
+        "Employees should still avoid including confidential client, employee, or project information."
     )
 
 
@@ -178,7 +188,7 @@ def build_business_recommendation(decision, attack_type, entities):
     if entity_count > 0:
         return (
             "Recommended action: allow with caution. The prompt appears low-risk, but the employee should "
-            "confirm that the named entities do not refer to confidential Ernst & Young client or internal information."
+            "confirm that the named entities do not refer to confidential EY client or internal information."
         )
 
     return (
@@ -187,26 +197,47 @@ def build_business_recommendation(decision, attack_type, entities):
     )
 
 
-def display_card(title, value, subtitle, border_color):
+def render_summary_card(title, value, subtitle, border_color, background_color, badge_text=None):
+    badge_html = ""
+
+    if badge_text:
+        badge_html = f"""
+        <div class="card-badge" style="background-color: {background_color}; color: {border_color};">
+            {badge_text}
+        </div>
+        """
+
     st.markdown(
         f"""
-        <div style="
-            border: 1px solid #EAECF0;
-            border-left: 6px solid {border_color};
-            border-radius: 14px;
-            padding: 18px 20px;
-            background-color: #FFFFFF;
-            box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
-            min-height: 135px;
-        ">
-            <div style="font-size: 15px; color: #667085; margin-bottom: 8px;">
-                {title}
+        <div class="summary-card" style="border-left-color: {border_color};">
+            <div class="summary-card-top">
+                <div>
+                    <div class="summary-card-title">{title}</div>
+                    <div class="summary-card-value" style="color: #101828;">{value}</div>
+                </div>
+                {badge_html}
             </div>
-            <div style="font-size: 30px; font-weight: 700; color: #101828; margin-bottom: 8px;">
-                {value}
+            <div class="summary-card-subtitle">{subtitle}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def render_decision_status_bar(decision, risk_score):
+    color = get_risk_color(decision)
+    background = get_risk_background(decision)
+
+    st.markdown(
+        f"""
+        <div class="decision-banner" style="background-color: {background}; border-color: {color};">
+            <div class="decision-banner-left">
+                <div class="decision-banner-label">Current Screening Outcome</div>
+                <div class="decision-banner-value" style="color: {color};">{decision}</div>
             </div>
-            <div style="font-size: 14px; color: #475467;">
-                {subtitle}
+            <div class="decision-banner-right">
+                <div class="decision-banner-score-label">Prompt Injection Risk Score</div>
+                <div class="decision-banner-score">{risk_score:.2%}</div>
             </div>
         </div>
         """,
@@ -237,28 +268,136 @@ st.markdown(
         font-size: 26px;
         font-weight: 750;
         color: #101828;
-        margin-top: 28px;
-        margin-bottom: 10px;
+        margin-top: 30px;
+        margin-bottom: 12px;
     }
 
     .info-box {
         border: 1px solid #EAECF0;
-        border-radius: 14px;
-        padding: 18px 20px;
+        border-radius: 16px;
+        padding: 18px 22px;
         background-color: #F9FAFB;
         color: #344054;
         font-size: 16px;
         line-height: 1.6;
     }
 
+    .decision-banner {
+        border: 1px solid;
+        border-left: 8px solid;
+        border-radius: 18px;
+        padding: 22px 26px;
+        margin-top: 8px;
+        margin-bottom: 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+    }
+
+    .decision-banner-label {
+        font-size: 15px;
+        color: #667085;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .decision-banner-value {
+        font-size: 46px;
+        font-weight: 850;
+        letter-spacing: 0.5px;
+        line-height: 1.1;
+    }
+
+    .decision-banner-right {
+        text-align: right;
+    }
+
+    .decision-banner-score-label {
+        font-size: 15px;
+        color: #667085;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .decision-banner-score {
+        font-size: 34px;
+        font-weight: 800;
+        color: #101828;
+    }
+
+    .summary-card {
+        border: 1px solid #EAECF0;
+        border-left: 7px solid;
+        border-radius: 18px;
+        padding: 22px 24px;
+        background-color: #FFFFFF;
+        box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+        min-height: 235px;
+        height: 235px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .summary-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .summary-card-title {
+        font-size: 16px;
+        color: #667085;
+        margin-bottom: 14px;
+        font-weight: 650;
+    }
+
+    .summary-card-value {
+        font-size: 40px;
+        font-weight: 850;
+        line-height: 1.1;
+        letter-spacing: 0.3px;
+    }
+
+    .summary-card-subtitle {
+        font-size: 15px;
+        color: #475467;
+        line-height: 1.55;
+        margin-top: 18px;
+    }
+
+    .card-badge {
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
     .recommendation-box {
         border: 1px solid #D0D5DD;
-        border-radius: 14px;
-        padding: 18px 20px;
+        border-radius: 16px;
+        padding: 20px 22px;
         background-color: #F8FAFC;
         color: #101828;
         font-size: 16px;
-        line-height: 1.6;
+        line-height: 1.65;
+    }
+
+    .small-note {
+        color: #667085;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    div[data-testid="stMetric"] {
+        background-color: #FFFFFF;
+        border: 1px solid #EAECF0;
+        padding: 18px 20px;
+        border-radius: 16px;
+        box-shadow: 0 1px 4px rgba(16, 24, 40, 0.06);
     }
     </style>
     """,
@@ -359,7 +498,7 @@ run_button = st.button("Run Risk Screening", type="primary")
 
 
 # -----------------------------
-# Inference and UI output
+# Inference and output
 # -----------------------------
 if run_button:
     if not prompt_text.strip():
@@ -422,32 +561,44 @@ if run_button:
     st.markdown('<div class="section-title">Screening Decision</div>', unsafe_allow_html=True)
 
     decision_color = get_risk_color(decision)
-    decision_explanation = get_decision_explanation(decision, risk_level)
+    decision_background = get_risk_background(decision)
+    decision_explanation = get_decision_explanation(decision)
 
-    col1, col2, col3 = st.columns(3)
+    render_decision_status_bar(decision, risk_score)
 
-    with col1:
-        display_card(
+    card_col1, card_col2, card_col3 = st.columns(3)
+
+    with card_col1:
+        render_summary_card(
             title="Final Decision",
             value=decision,
             subtitle=decision_explanation,
-            border_color=decision_color
+            border_color=decision_color,
+            background_color=decision_background,
+            badge_text="Primary outcome"
         )
 
-    with col2:
-        display_card(
+    with card_col2:
+        render_summary_card(
             title="Risk Level",
             value=risk_level,
-            subtitle=f"Risk score: {risk_score:.2%}",
-            border_color=decision_color
+            subtitle=(
+                f"Risk score: {risk_score:.2%}. "
+                "This score reflects the likelihood of prompt injection or policy-bypass behavior."
+            ),
+            border_color=decision_color,
+            background_color=decision_background,
+            badge_text="Risk status"
         )
 
-    with col3:
-        display_card(
+    with card_col3:
+        render_summary_card(
             title="Model Confidence",
             value=f"{confidence:.2%}",
-            subtitle=f"Classifier result: {predicted_label}",
-            border_color="#175CD3"
+            subtitle=f"Classifier result: {predicted_label}. This reflects the confidence of the fine-tuned risk model.",
+            border_color="#175CD3",
+            background_color="#EFF8FF",
+            badge_text="Model output"
         )
 
     st.markdown('<div class="section-title">Sensitive Information Check</div>', unsafe_allow_html=True)
@@ -478,7 +629,7 @@ if run_button:
     st.markdown('<div class="section-title">Attack Type Explanation</div>', unsafe_allow_html=True)
 
     if decision in ["BLOCK", "REVIEW"]:
-        attack_col1, attack_col2 = st.columns([1, 2])
+        attack_col1, attack_col2 = st.columns([1, 1])
 
         with attack_col1:
             st.metric("Most Likely Attack Type", attack_type)
@@ -530,3 +681,4 @@ if run_button:
             st.dataframe(top_attack_candidates, use_container_width=True)
         else:
             st.write("No attack type classification was required.")
+            
