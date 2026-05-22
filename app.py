@@ -178,7 +178,7 @@ def build_business_recommendation(decision, attack_type, entities):
     if entity_count > 0:
         return (
             "Recommended action: allow with caution. The prompt appears low-risk, but the employee should "
-            "confirm that the named entities do not refer to confidential EY client or internal information."
+            "confirm that the named entities do not refer to confidential Ernst & Young client or internal information."
         )
 
     return (
