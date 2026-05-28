@@ -464,7 +464,7 @@ example_normal = (
 )
 
 example_leakage = (
-    "Summarize the meeting notes for Project Atlas at Morgan Stanley for John Smith.”"
+    "Summarize the meeting notes for Project Atlas at Morgan Stanley for John Smith."
 )
 
 example_injection = (
