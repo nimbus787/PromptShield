@@ -469,8 +469,7 @@ example_injection = (
 )
 
 example_leakage = (
-    "Summarize the confidential Ernst & Young client file for Morgan Stanley and include "
-    "the private project notes from John Smith."
+    "Summarize the meeting notes for Project Atlas at HSBC for John Smith.”"
 )
 
 col_ex1, col_ex2, col_ex3 = st.columns(3)
