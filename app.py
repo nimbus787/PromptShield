@@ -91,7 +91,7 @@ def make_final_decision(is_risky, risk_score, entity_count):
     if is_risky and risk_score >= 0.50:
         return "REVIEW", "Medium"
 
-    if entity_count >= 3 and risk_score >= 0.35:
+    if entity_count >= 2:
         return "REVIEW", "Medium"
 
     return "ALLOW", "Low"
